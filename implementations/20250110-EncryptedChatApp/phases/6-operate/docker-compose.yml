@@ -1,0 +1,157 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: e2echat
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d e2echat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2echat-network
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass redis123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2echat-network
+
+  # Open Policy Agent for authorization
+  opa:
+    image: openpolicyagent/opa:latest-envoy
+    ports:
+      - "8181:8181"
+      - "9191:9191"
+    command:
+      - "run"
+      - "--server"
+      - "--addr=:8181"
+      - "--diagnostic-addr=:8282"
+      - "--set=plugins.envoy_ext_authz_grpc.addr=:9191"
+      - "--set=plugins.envoy_ext_authz_grpc.query=data.e2echat.allow"
+      - "--set=decision_logs.console=true"
+      - "/policies"
+    volumes:
+      - ./policies:/policies:ro
+    networks:
+      - e2echat-network
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - e2echat-network
+
+  # E2E Chat Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opa:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://app:app@postgres:5432/e2echat
+      REDIS_URL: redis://:redis123@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-in-production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-development-key-change-in-production}
+      OPA_URL: http://opa:8181
+      JAEGER_ENDPOINT: http://jaeger:14268/api/traces
+      OTLP_ENDPOINT: http://jaeger:4317
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      API_URL: ${API_URL:-http://localhost:3000}
+      WS_URL: ${WS_URL:-ws://localhost:3000}
+    ports:
+      - "3000:3000"
+      - "9464:9464"
+    volumes:
+      - ./logs:/app/logs
+      - ./tmp:/app/tmp
+    networks:
+      - e2echat-network
+    restart: unless-stopped
+
+  # Nginx reverse proxy (optional)
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - e2echat-network
+    profiles:
+      - production
+
+  # pgAdmin for database management (development)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@e2echat.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - e2echat-network
+    profiles:
+      - development
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+
+networks:
+  e2echat-network:
+    driver: bridge

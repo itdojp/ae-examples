@@ -1,0 +1,640 @@
+openapi: 3.0.3
+info:
+  title: E2E Encrypted Chat API
+  description: API for end-to-end encrypted messaging system with Double Ratchet and X3DH
+  version: 1.0.0
+  contact:
+    name: E2E Chat Support
+    email: support@e2echat.example
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.e2echat.example/v1
+    description: Production server
+  - url: https://staging-api.e2echat.example/v1
+    description: Staging server
+  - url: http://localhost:3000/v1
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Authentication
+    description: User registration and authentication
+  - name: Keys
+    description: Cryptographic key management
+  - name: Messages
+    description: Encrypted messaging operations
+  - name: Sessions
+    description: Session management
+  - name: Users
+    description: User profile operations
+  - name: Verification
+    description: Identity verification
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - displayName
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: alice@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 12
+                  pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]'
+                  example: SecureP@ssw0rd123
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  example: Alice
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - deviceFingerprint
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                deviceFingerprint:
+                  type: string
+                  description: Unique device identifier
+                totpCode:
+                  type: string
+                  pattern: '^[0-9]{6}$'
+                  description: TOTP code for 2FA
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 2FA required or invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      operationId: logoutUser
+      responses:
+        '204':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/2fa/enable:
+    post:
+      tags:
+        - Authentication
+      summary: Enable two-factor authentication
+      operationId: enable2FA
+      responses:
+        '200':
+          description: 2FA setup initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                    description: TOTP secret
+                  qrCode:
+                    type: string
+                    description: QR code data URL
+                  backupCodes:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /keys/bundle/{userId}:
+    get:
+      tags:
+        - Keys
+      summary: Get user's public key bundle
+      operationId: getKeyBundle
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Key bundle retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyBundle'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /keys/upload:
+    post:
+      tags:
+        - Keys
+      summary: Upload user keys
+      operationId: uploadKeys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identityKey:
+                  type: string
+                  description: Base64 encoded public identity key
+                signedPreKey:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    key:
+                      type: string
+                    signature:
+                      type: string
+                oneTimePreKeys:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      key:
+                        type: string
+      responses:
+        '204':
+          description: Keys uploaded successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /keys/rotate/signed:
+    post:
+      tags:
+        - Keys
+      summary: Rotate signed pre-key
+      operationId: rotateSignedPreKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signedPreKey:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    key:
+                      type: string
+                    signature:
+                      type: string
+      responses:
+        '204':
+          description: Key rotated successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /messages/send:
+    post:
+      tags:
+        - Messages
+      summary: Send encrypted message
+      operationId: sendMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipientId
+                - ciphertext
+                - nonce
+                - authTag
+              properties:
+                recipientId:
+                  type: string
+                  format: uuid
+                ciphertext:
+                  type: string
+                  description: Base64 encoded encrypted message
+                nonce:
+                  type: string
+                  description: Base64 encoded nonce
+                authTag:
+                  type: string
+                  description: Base64 encoded authentication tag
+                dhPublicKey:
+                  type: string
+                  description: Base64 encoded DH public key for ratchet
+                messageNumber:
+                  type: integer
+                previousChainLength:
+                  type: integer
+      responses:
+        '201':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Recipient not found
+
+  /messages/{userId}:
+    get:
+      tags:
+        - Messages
+      summary: Get messages with a user
+      operationId: getMessages
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Messages retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  total:
+                    type: integer
+                  hasMore:
+                    type: boolean
+
+  /messages/{messageId}/receipt:
+    post:
+      tags:
+        - Messages
+      summary: Send message receipt
+      operationId: sendReceipt
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [delivered, read]
+      responses:
+        '204':
+          description: Receipt sent
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /sessions/{userId}:
+    post:
+      tags:
+        - Sessions
+      summary: Establish session with user
+      operationId: establishSession
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ephemeralPublicKey:
+                  type: string
+                  description: Base64 encoded ephemeral public key for X3DH
+      responses:
+        '201':
+          description: Session established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /verification/{userId}/safety-number:
+    get:
+      tags:
+        - Verification
+      summary: Get safety number for verification
+      operationId: getSafetyNumber
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Safety number generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  safetyNumber:
+                    type: string
+                    example: "12345 67890 12345 67890 12345 67890"
+                  qrCode:
+                    type: string
+                    description: Data URL for QR code
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /verification/{userId}/verify:
+    post:
+      tags:
+        - Verification
+      summary: Mark user as verified
+      operationId: verifyUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User marked as verified
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        isVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastSeen:
+          type: string
+          format: date-time
+
+    AuthToken:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT access token
+        refreshToken:
+          type: string
+          description: Refresh token
+        expiresIn:
+          type: integer
+          description: Token expiry in seconds
+        tokenType:
+          type: string
+          default: Bearer
+
+    KeyBundle:
+      type: object
+      properties:
+        identityKey:
+          type: string
+          description: Base64 encoded public identity key
+        signedPreKey:
+          type: object
+          properties:
+            id:
+              type: integer
+            key:
+              type: string
+            signature:
+              type: string
+        oneTimePreKey:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            key:
+              type: string
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        recipientId:
+          type: string
+          format: uuid
+        ciphertext:
+          type: string
+        nonce:
+          type: string
+        authTag:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        delivered:
+          type: boolean
+        read:
+          type: boolean
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        peerId:
+          type: string
+          format: uuid
+        established:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
