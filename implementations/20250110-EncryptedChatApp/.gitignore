@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.js
+*.js.map
+*.d.ts
+!src/**/*.d.ts
+
+# Runtime
+*.log
+*.pid
+*.seed
+*.sqlite
+
+# Cache
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+
+# Test outputs
+coverage/
+.nyc_output/
+*.lcov
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Security
+*.pem
+*.key
+secrets/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+tmp/
+temp/
