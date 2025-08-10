@@ -1,8 +1,19 @@
-# ae-framework Implementation Records
+# AE Framework Examples
 
-このリポジトリは ae-framework を使用した実際の開発セッションの記録を保存し、フレームワーク改善のための分析データとして活用します。
+This repository contains example implementations using the AE Framework.
 
-## 保存されている実装記録
+## Examples
+
+### inventory-basic
+A basic inventory management system demonstrating:
+- BDD specifications
+- Domain-driven design
+- Property-based testing
+- Policy as code
+
+## Implementation Records
+
+このリポジトリは ae-framework を使用した実際の開発セッションの記録も保存し、フレームワーク改善のための分析データとして活用します。
 
 ### [20250110-EncryptedChatApp](./implementations/20250110-EncryptedChatApp/)
 - **日付**: 2025年1月10日
