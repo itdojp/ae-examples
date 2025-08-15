@@ -274,8 +274,41 @@ Stage 3 (WebUI)
 - 既存資産の最大活用
 - 品質基準の継続的向上
 
+## 📝 開発会話ログの記録
+
+プロジェクト全体の開発過程で、ClaudeCodeとの詳細な会話ログが記録されています：
+
+### 🗂️ 開発ログ構成
+```
+development-logs/
+├── README.md                    # ログファイル一覧・活用ガイド
+├── 01_Intent.txt               # Phase 1: 要件分析
+├── 02_FormalAgent.txt          # Phase 2: 形式仕様作成
+├── 03_Phase3_TestAgent.txt     # Phase 3: テスト戦略
+├── 04_CodeAgent.txt            # Phase 4: コード実装
+├── 05_VerifyAgent.txt          # Phase 5: 品質検証
+├── 06_OperateAgent.txt         # Phase 6: デプロイ準備
+├── 07_既読機能追加.txt         # Stage 2: 既読機能拡張 前半
+├── 08_既読機能追加続き.txt     # Stage 2: 既読機能拡張 後半
+├── 09_実際に動作.txt           # Stage 2: 動作確認・問題解決
+├── 10_WebUI機能追加01.txt      # Stage 3: WebUI要件・設計
+├── 11_WebUI機能追加02.txt      # Stage 3: WebUIテスト・実装
+├── 12_WebUI機能追加03.txt      # Stage 3: WebUI統合・API連携
+├── 13_WebUI機能追加04.txt      # Stage 3: WebUI品質検証・デプロイ
+└── 14_WebUI機能追加05.txt      # Stage 3: 問題解決・統合完成
+```
+
+### 📋 ログの価値
+- **ae-framework実践手法**: 各フェーズでの具体的な実行プロセス
+- **技術実装の詳細**: E2E暗号化・WebSocket・React実装の全過程
+- **問題解決アプローチ**: 段階的切り分け・デバッグ手法の実践例
+- **品質管理プロセス**: 77/100スコア達成の具体的手順
+
+この開発ログにより、ae-frameworkの実践的適用方法と、モダンWebアプリケーション開発の全プロセスを後から詳細に追跡・学習することが可能です。
+
 ---
 
 **文書作成**: ae-framework 開発チーム  
 **最終更新**: 2025年8月15日  
+**開発ログ**: development-logs/ 完備  
 **次回レビュー**: 2025年9月15日
