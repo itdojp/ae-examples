@@ -1,0 +1,58 @@
+{
+  "timestamp": "2025-08-15T01:00:35.745Z",
+  "wcagCompliance": {
+    "level": "AA",
+    "score": 87,
+    "status": "good"
+  },
+  "findings": {
+    "violations": [
+      {
+        "severity": "moderate",
+        "rule": "color-contrast",
+        "element": "button.secondary",
+        "description": "Insufficient color contrast ratio (3.2:1)",
+        "recommendation": "Increase contrast to at least 4.5:1"
+      },
+      {
+        "severity": "minor",
+        "rule": "label",
+        "element": "input#search",
+        "description": "Form input missing accessible label",
+        "recommendation": "Add aria-label or associated label element"
+      }
+    ],
+    "warnings": [
+      {
+        "rule": "landmark-one-main",
+        "description": "Page should have one main landmark",
+        "recommendation": "Add main element or role=\"main\""
+      }
+    ]
+  },
+  "keyboard": {
+    "navigation": "good",
+    "tabOrder": "good",
+    "focusManagement": "excellent",
+    "issues": [
+      "Skip link missing for main content",
+      "Focus trap needed in modal dialogs"
+    ]
+  },
+  "screenReader": {
+    "support": "good",
+    "ariaLabels": "good",
+    "semanticHTML": "excellent",
+    "issues": [
+      "Loading states need aria-live announcements",
+      "Error messages need better association with inputs"
+    ]
+  },
+  "recommendations": [
+    "Fix color contrast issues for secondary buttons",
+    "Add comprehensive aria-labels for dynamic content",
+    "Implement proper focus management for modals",
+    "Add skip navigation links",
+    "Test with actual screen readers"
+  ]
+}

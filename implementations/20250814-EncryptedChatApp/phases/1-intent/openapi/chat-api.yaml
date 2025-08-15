@@ -1,0 +1,470 @@
+openapi: 3.0.3
+info:
+  title: E2E暗号化チャットAPI
+  description: エンド・ツー・エンド暗号化チャットアプリケーションのRESTful API
+  version: 1.0.0
+  contact:
+    name: ae-framework development
+    url: https://github.com/itdojp/ae-examples
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: 開発環境
+  - url: https://api.encrypted-chat.example.com
+    description: 本番環境
+
+paths:
+  /health:
+    get:
+      summary: ヘルスチェック
+      description: サーバーの稼働状況確認
+      responses:
+        '200':
+          description: サーバー正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/auth/register:
+    post:
+      summary: ユーザー登録
+      description: 新規ユーザーアカウントの作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - displayName
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                password:
+                  type: string
+                  minLength: 8
+                  example: "securepassword123"
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  example: "太郎"
+      responses:
+        '201':
+          description: ユーザー登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: 無効なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: メールアドレス既存
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login:
+    post:
+      summary: ユーザーログイン
+      description: 既存ユーザーの認証とトークン取得
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                password:
+                  type: string
+                  example: "securepassword123"
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/refresh:
+    post:
+      summary: トークンリフレッシュ
+      description: 有効期限切れ前のJWTトークン更新
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: トークン更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: 無効なトークン
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/profile:
+    get:
+      summary: ユーザープロフィール取得
+      description: 認証済みユーザーのプロフィール情報取得
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: プロフィール取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/conversations:
+    get:
+      summary: 会話一覧取得
+      description: ユーザーが参加している会話の一覧取得
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: 取得件数制限
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: オフセット
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: 会話一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+                  total:
+                    type: integer
+                  hasMore:
+                    type: boolean
+
+    post:
+      summary: 新規会話作成
+      description: 新しい会話の開始
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - participantIds
+              properties:
+                participantIds:
+                  type: array
+                  items:
+                    type: string
+                  description: 参加者のユーザーID配列
+                title:
+                  type: string
+                  maxLength: 100
+                  description: 会話タイトル（オプション）
+      responses:
+        '201':
+          description: 会話作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+  /api/conversations/{conversationId}/messages:
+    get:
+      summary: メッセージ履歴取得
+      description: 指定された会話のメッセージ履歴取得
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: before
+          in: query
+          description: 指定されたメッセージID以前のメッセージを取得
+          schema:
+            type: string
+      responses:
+        '200':
+          description: メッセージ取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  hasMore:
+                    type: boolean
+
+    post:
+      summary: メッセージ送信
+      description: 会話にメッセージを送信
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - encryptedContent
+                - encryptedKeys
+              properties:
+                encryptedContent:
+                  type: string
+                  description: AES-GCMで暗号化されたメッセージ内容
+                encryptedKeys:
+                  type: object
+                  description: 各参加者用にRSA-OAEPで暗号化されたAESキー
+                  additionalProperties:
+                    type: string
+                messageType:
+                  type: string
+                  enum: [text, image, file]
+                  default: text
+      responses:
+        '201':
+          description: メッセージ送信成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /api/conversations/{conversationId}/read-status:
+    post:
+      summary: 既読ステータス更新
+      description: メッセージの既読ステータスを更新
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - messageId
+                - deviceId
+              properties:
+                messageId:
+                  type: string
+                  description: 既読にするメッセージID
+                deviceId:
+                  type: string
+                  description: 既読端末の識別子
+                readAt:
+                  type: string
+                  format: date-time
+                  description: 既読時刻（省略時は現在時刻）
+      responses:
+        '200':
+          description: 既読ステータス更新成功
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT認証トークン
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        expiresIn:
+          type: integer
+          description: トークン有効期限（秒）
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        publicKey:
+          type: string
+          description: RSA公開鍵（PEM形式）
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfile'
+        lastMessage:
+          $ref: '#/components/schemas/Message'
+        unreadCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        conversationId:
+          type: string
+        senderId:
+          type: string
+        encryptedContent:
+          type: string
+          description: 暗号化されたメッセージ内容
+        encryptedKeys:
+          type: object
+          description: 各参加者用の暗号化されたキー
+          additionalProperties:
+            type: string
+        messageType:
+          type: string
+          enum: [text, image, file]
+        sentAt:
+          type: string
+          format: date-time
+        readStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+              deviceId:
+                type: string
+              readAt:
+                type: string
+                format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: エラーコード
+        message:
+          type: string
+          description: エラーメッセージ
+        details:
+          type: object
+          description: 詳細情報（オプション）
+
+# WebSocket エベント仕様
+# 注意: OpenAPIはWebSocketを直接サポートしないため、
+# WebSocketイベントは別途ドキュメント化が必要
+
+# WebSocket Events:
+# - connect: 接続確立
+# - disconnect: 接続切断
+# - message: 新しいメッセージ受信
+# - read_status_update: 既読ステータス更新
+# - typing_start: 入力開始通知
+# - typing_stop: 入力停止通知
+# - user_online: ユーザーオンライン通知
+# - user_offline: ユーザーオフライン通知

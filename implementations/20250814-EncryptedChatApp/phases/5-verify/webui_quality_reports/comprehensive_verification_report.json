@@ -1,0 +1,65 @@
+{
+  "passed": false,
+  "results": [
+    {
+      "type": "tests",
+      "passed": false,
+      "details": {
+        "total": 10,
+        "passed": 9,
+        "failed": 1,
+        "skipped": 0,
+        "duration": 100,
+        "failures": []
+      },
+      "errors": []
+    }
+  ],
+  "coverage": {
+    "line": 85,
+    "branch": 75,
+    "function": 90,
+    "statement": 85,
+    "uncoveredFiles": []
+  },
+  "metrics": {
+    "complexity": 8,
+    "maintainability": 85,
+    "reliability": 92,
+    "security": 88,
+    "performance": 90,
+    "testability": 87
+  },
+  "issues": [],
+  "suggestions": [
+    "Increase branch coverage from 75% to at least 80%",
+    "Fix failing tests before deployment"
+  ],
+  "traceability": {
+    "requirements": [],
+    "specifications": [],
+    "tests": [
+      {
+        "id": "src/tests/setup.ts",
+        "description": "Test: src/tests/setup.ts",
+        "linkedTo": [],
+        "covered": true
+      }
+    ],
+    "code": [
+      {
+        "id": "src/App.tsx",
+        "description": "Code: src/App.tsx",
+        "linkedTo": [],
+        "covered": true
+      },
+      {
+        "id": "src/components/ChatInterface.tsx",
+        "description": "Code: src/components/ChatInterface.tsx",
+        "linkedTo": [],
+        "covered": true
+      }
+    ],
+    "coverage": 100
+  }
+}

@@ -1,0 +1,218 @@
+# E2E暗号化チャットアプリケーション - Docker Compose 本番環境
+version: '3.8'
+
+services:
+  # データベース
+  db:
+    image: postgres:15-alpine
+    container_name: e2echat-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: e2echat
+      POSTGRES_USER: chatapp
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./phases/4-code/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - e2echat-network
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatapp -d e2echat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (セッション・キャッシュ)
+  redis:
+    image: redis:7-alpine
+    container_name: e2echat-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass-file /run/secrets/redis_password
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - e2echat-network
+    secrets:
+      - redis_password
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # E2Eチャットアプリケーション
+  app:
+    build:
+      context: .
+      dockerfile: phases/6-operate/Dockerfile
+    container_name: e2echat-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - WEBUI_PORT=4173
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=e2echat
+      - DB_USER=chatapp
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+      - CORS_ORIGIN=https://chat.example.com
+      - LOG_LEVEL=info
+    ports:
+      - "3000:3000"
+      - "4173:4173"
+      - "80:80"
+    networks:
+      - e2echat-network
+    secrets:
+      - jwt_secret
+      - db_password
+      - redis_password
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - app_logs:/app/logs
+      - ./phases/6-operate/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  # Nginxリバースプロキシ
+  nginx:
+    image: nginx:alpine
+    container_name: e2echat-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "8080:80"
+    volumes:
+      - ./phases/6-operate/docker/nginx-prod.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/ssl/certs:ro
+      - app_logs:/var/log/nginx
+    networks:
+      - e2echat-network
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus監視
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: e2echat-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./phases/6-operate/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - e2echat-network
+    depends_on:
+      - app
+
+  # Grafana可視化
+  grafana:
+    image: grafana/grafana:latest
+    container_name: e2echat-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD_FILE=/run/secrets/grafana_password
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./phases/6-operate/monitoring/grafana:/etc/grafana/provisioning:ro
+    networks:
+      - e2echat-network
+    secrets:
+      - grafana_password
+    depends_on:
+      - prometheus
+
+  # Jaeger分散トレーシング
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: e2echat-jaeger
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+    volumes:
+      - jaeger_data:/badger
+    networks:
+      - e2echat-network
+
+  # ログ集約 (Fluent Bit)
+  fluent-bit:
+    image: fluent/fluent-bit:latest
+    container_name: e2echat-logs
+    restart: unless-stopped
+    volumes:
+      - ./phases/6-operate/monitoring/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - app_logs:/var/log/app:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - e2echat-network
+    depends_on:
+      - app
+
+# ネットワーク
+networks:
+  e2echat-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 永続化ボリューム
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  jaeger_data:
+    driver: local
+
+# シークレット
+secrets:
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+  grafana_password:
+    file: ./secrets/grafana_password.txt

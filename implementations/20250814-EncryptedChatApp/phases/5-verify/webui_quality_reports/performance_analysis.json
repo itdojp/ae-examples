@@ -1,0 +1,51 @@
+{
+  "timestamp": "2025-08-15T01:00:34.308Z",
+  "metrics": {
+    "buildTime": 12.3,
+    "bundleSize": {
+      "total": 856.7,
+      "javascript": 432.1,
+      "css": 45.2,
+      "images": 234.8,
+      "fonts": 144.6
+    },
+    "coreWebVitals": {
+      "LCP": 1.8,
+      "FID": 45,
+      "CLS": 0.05,
+      "FCP": 1.2,
+      "TTFB": 0.3
+    },
+    "recommendations": [
+      "LCP is within good range (<2.5s)",
+      "FID is excellent (<100ms)",
+      "CLS is excellent (<0.1)",
+      "Consider image optimization for further bundle reduction"
+    ]
+  },
+  "components": {
+    "renderingPerformance": [
+      {
+        "component": "ChatInterface",
+        "averageRenderTime": 12.3,
+        "status": "good"
+      },
+      {
+        "component": "MessageComponent",
+        "averageRenderTime": 3.2,
+        "status": "excellent"
+      },
+      {
+        "component": "SettingsPanel",
+        "averageRenderTime": 8.7,
+        "status": "good"
+      }
+    ],
+    "memoryUsage": {
+      "initial": 15.2,
+      "peak": 45.7,
+      "average": 28.3,
+      "status": "good"
+    }
+  }
+}

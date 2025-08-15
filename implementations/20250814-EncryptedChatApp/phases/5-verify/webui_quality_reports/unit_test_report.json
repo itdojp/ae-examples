@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-08-15T01:00:33.567Z",
+  "status": "failed",
+  "summary": {
+    "totalTests": 24,
+    "passed": 18,
+    "failed": 4,
+    "skipped": 2,
+    "duration": 2.89
+  },
+  "coverage": {
+    "statements": 65.2,
+    "branches": 58.7,
+    "functions": 71.3,
+    "lines": 64.1
+  },
+  "failures": [
+    "EncryptionService: key generation timeout",
+    "WebSocketService: connection establishment failed",
+    "MessageComponent: async rendering issue",
+    "ReadStatusBadge: props validation failed"
+  ]
+}
