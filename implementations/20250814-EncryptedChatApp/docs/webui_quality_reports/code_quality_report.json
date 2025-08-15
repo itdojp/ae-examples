@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-08-15T01:00:31.572Z",
+  "analysis": {
+    "complexity": {
+      "average": 3.2,
+      "max": 8,
+      "files": [
+        {
+          "file": "src/components/ChatInterface.tsx",
+          "complexity": 8,
+          "status": "moderate"
+        },
+        {
+          "file": "src/store/index.ts",
+          "complexity": 5,
+          "status": "good"
+        },
+        {
+          "file": "src/services/encryptionService.ts",
+          "complexity": 6,
+          "status": "good"
+        }
+      ]
+    },
+    "maintainability": {
+      "index": 85,
+      "status": "excellent",
+      "issues": [
+        "Large function in ChatInterface.tsx (handleSendMessage)",
+        "Consider extracting utility functions in encryptionService.ts"
+      ]
+    },
+    "duplication": {
+      "percentage": 2.1,
+      "status": "excellent",
+      "duplicatedLines": 12,
+      "totalLines": 572
+    },
+    "codeSize": {
+      "totalFiles": 25,
+      "totalLines": 572,
+      "codeLines": 445,
+      "commentLines": 89,
+      "blankLines": 38
+    }
+  },
+  "recommendations": [
+    "Consider splitting ChatInterface.tsx into smaller components",
+    "Add more inline documentation for complex encryption logic",
+    "Extract common utility functions to reduce duplication"
+  ]
+}

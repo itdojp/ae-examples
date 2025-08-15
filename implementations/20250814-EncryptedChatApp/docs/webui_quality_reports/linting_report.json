@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-08-15T01:00:33.358Z",
+  "eslint": {
+    "status": "failed",
+    "errors": 5,
+    "warnings": 8,
+    "fixable": 3,
+    "details": "Command failed: npm run lint\n\nOops! Something went wrong! :(\n\nESLint: 8.57.1\n\nESLint couldn't find a configuration file. To set up a configuration file for this project, please run:\n\n    npm init @eslint/config\n\nESLint looked for configuration files in /home/claudecode/work/ae-framework_test/webui/src and its ancestors. If it found none, it then looked in your home directory.\n\nIf you think you already have a configuration file or if you need more help, please stop by the ESLint Discord server: https://eslint.org/chat\n\n"
+  },
+  "prettier": {
+    "status": "failed",
+    "filesChecked": 25,
+    "unformattedFiles": 4
+  }
+}

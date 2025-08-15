@@ -1,0 +1,212 @@
+# E2E Encrypted Chat WebUI
+
+Modern React-based web interface for secure end-to-end encrypted messaging.
+
+## 🚀 Features
+
+- **End-to-End Encryption**: WebCrypto API with AES-256-GCM + RSA-2048-OAEP
+- **Real-time Messaging**: WebSocket-based instant communication
+- **Read Status Tracking**: Advanced read receipt system with privacy controls
+- **Responsive Design**: Mobile-first design with Material-UI
+- **Dark/Light Theme**: User-customizable theme preferences
+- **Offline Support**: PWA capabilities with service worker
+- **Accessibility**: WCAG AA compliance
+- **Type Safety**: Full TypeScript implementation
+
+## 🛠️ Technology Stack
+
+- **Frontend**: React 18 + TypeScript + Vite
+- **State Management**: Redux Toolkit + RTK Query
+- **UI Framework**: Material-UI (MUI) v5
+- **Testing**: Jest + React Testing Library
+- **Build Tool**: Vite with ES modules
+- **Styling**: Emotion (CSS-in-JS) + Material-UI
+- **Real-time**: WebSocket client
+- **Encryption**: WebCrypto API
+- **Storage**: IndexedDB for encryption keys
+
+## 📦 Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## 🏗️ Project Structure
+
+```
+src/
+├── components/          # React components
+│   ├── ChatInterface.tsx
+│   ├── MessageComponent.tsx
+│   ├── ReadStatusBadge.tsx
+│   ├── SettingsPanel.tsx
+│   └── MessageComposer.tsx
+├── services/           # API and service layers
+│   ├── apiService.ts
+│   ├── websocketService.ts
+│   └── encryptionService.ts
+├── store/              # Redux store and slices
+│   └── index.ts
+├── hooks/              # Custom React hooks
+│   └── index.ts
+├── types/              # TypeScript type definitions
+│   └── index.ts
+├── styles/             # Theme and global styles
+│   ├── theme.ts
+│   └── global.css
+├── tests/              # Test configuration
+│   └── setup.ts
+├── App.tsx            # Main application component
+└── main.tsx           # Application entry point
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
+```
+VITE_API_BASE_URL=http://localhost:3000/api
+VITE_WS_URL=ws://localhost:3000/ws
+VITE_APP_NAME=E2E Chat
+```
+
+### Backend Integration
+
+This WebUI connects to the existing E2E chat backend:
+
+- **API Endpoint**: `http://localhost:3000/api`
+- **WebSocket**: `ws://localhost:3000/ws/read-status`
+
+Ensure the backend is running before starting the WebUI.
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+npm run lint:fix
+
+# Code formatting
+npm run format
+npm run format:check
+```
+
+## 🔒 Security Features
+
+- **Content Security Policy**: Strict CSP headers prevent XSS
+- **Input Sanitization**: All user inputs are sanitized
+- **E2E Encryption**: Messages encrypted client-side before transmission
+- **Secure Key Storage**: Private keys stored in IndexedDB
+- **JWT Authentication**: Secure token-based authentication
+- **HTTPS Enforcement**: Production deployment requires HTTPS
+
+## 📱 Progressive Web App
+
+The application includes PWA features:
+
+- Service worker for offline support
+- App manifest for installation
+- Push notifications (optional)
+- Background sync for message queue
+
+## 🎨 Customization
+
+### Theme Customization
+
+Edit `src/styles/theme.ts` to customize the Material-UI theme:
+
+```typescript
+export const theme = createTheme({
+  palette: {
+    primary: { main: '#2196f3' },
+    secondary: { main: '#9c27b0' },
+    // ... custom colors
+  },
+});
+```
+
+### Component Styling
+
+Components use Material-UI's `sx` prop and styled components for styling.
+
+## 🚀 Deployment
+
+### Development
+
+```bash
+npm run dev
+```
+
+Access at: `http://localhost:3001`
+
+### Production
+
+```bash
+npm run build
+npm run preview
+```
+
+### Docker Deployment
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY dist ./dist
+EXPOSE 3001
+CMD ["npm", "run", "preview"]
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+## 📄 License
+
+This project is part of the ae-framework development cycle and follows the project's licensing terms.
+
+## 🆘 Support
+
+For issues and support:
+
+1. Check the [GitHub Issues](link-to-issues)
+2. Review the [Documentation](link-to-docs)
+3. Contact the development team
+
+---
+
+**Generated by**: ae-framework Code Generation Agent  
+**Development Methodology**: ae-framework 6-phase development cycle  
+**Quality Assurance**: Comprehensive test strategy with 90%+ coverage target
