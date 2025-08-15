@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  webui:
+    image: e2e-chat-webui:latest
+    container_name: e2e-chat-webui-local
+    ports:
+      - "3001:80"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
