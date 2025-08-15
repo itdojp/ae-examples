@@ -16,7 +16,7 @@ A basic inventory management system demonstrating:
 このリポジトリは ae-framework を使用した実際の開発セッションの記録も保存し、フレームワーク改善のための分析データとして活用します。
 
 ### [20250110-EncryptedChatApp](./implementations/20250110-EncryptedChatApp/)
-- **日付**: 2025年1月10日
+- **日付**: 2025年8月10日
 - **アプリケーション**: E2E暗号化チャットアプリケーション
 - **技術**: Signal Protocol, Double Ratchet, X3DH, TypeScript, Fastify
 - **主な問題**: TDD原則の違反、テスト未実行
