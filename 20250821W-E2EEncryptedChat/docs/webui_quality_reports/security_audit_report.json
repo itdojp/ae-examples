@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-08-15T01:00:33.568Z",
+  "vulnerabilities": {
+    "critical": 0,
+    "high": 0,
+    "moderate": 1,
+    "low": 2,
+    "info": 3
+  },
+  "findings": [
+    {
+      "severity": "moderate",
+      "type": "XSS",
+      "location": "MessageComponent.tsx:67",
+      "description": "Potential XSS in message content rendering",
+      "recommendation": "Use DOMPurify for HTML sanitization"
+    },
+    {
+      "severity": "low",
+      "type": "Content Security Policy",
+      "location": "index.html",
+      "description": "Missing Content Security Policy headers",
+      "recommendation": "Add CSP meta tag or HTTP headers"
+    },
+    {
+      "severity": "low",
+      "type": "Sensitive Data",
+      "location": "encryptionService.ts:45",
+      "description": "Potential key logging in development mode",
+      "recommendation": "Remove debug logging in production"
+    }
+  ],
+  "encryption": {
+    "algorithm": "AES-256-GCM",
+    "keyManagement": "WebCrypto API",
+    "status": "secure",
+    "recommendations": [
+      "Implement key rotation mechanism",
+      "Add key derivation function validation"
+    ]
+  },
+  "authentication": {
+    "method": "JWT",
+    "tokenStorage": "localStorage",
+    "status": "moderate",
+    "recommendations": [
+      "Consider using httpOnly cookies for token storage",
+      "Implement token refresh mechanism",
+      "Add CSRF protection"
+    ]
+  }
+}

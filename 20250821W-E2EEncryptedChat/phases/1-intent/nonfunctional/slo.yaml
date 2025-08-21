@@ -1,0 +1,63 @@
+# Service Level Objectives (SLO)
+# E2E暗号化チャットアプリケーション
+
+slo_definitions:
+  performance:
+    message_latency:
+      target: "メッセージ送信から受信まで < 500ms"
+      measurement: "P95レスポンス時間"
+      threshold: "95%の場合で500ms以下"
+      
+    encryption_performance:
+      target: "暗号化処理時間 < 100ms"
+      measurement: "クライアント側暗号化処理時間"
+      threshold: "平均100ms以下"
+      
+    ui_responsiveness:
+      target: "UI操作レスポンス < 200ms"
+      measurement: "ボタンクリックから画面更新まで"
+      threshold: "90%の場合で200ms以下"
+      
+  availability:
+    service_uptime:
+      target: "99.9%以上の稼働率"
+      measurement: "月次稼働率"
+      threshold: "99.9%"
+      
+    connection_success:
+      target: "WebSocket接続成功率 > 99%"
+      measurement: "接続試行に対する成功率"
+      threshold: "99%以上"
+      
+  security:
+    key_generation:
+      target: "RSA-2048キー生成 < 2秒"
+      measurement: "キーペア生成時間"
+      threshold: "平均2秒以下"
+      
+    session_security:
+      target: "セッションタイムアウト 24時間"
+      measurement: "JWT トークン有効期限"
+      threshold: "24時間"
+      
+  scalability:
+    concurrent_users:
+      target: "同時接続ユーザー数 100人まで対応"
+      measurement: "WebSocket同時接続数"
+      threshold: "100接続"
+      
+    message_throughput:
+      target: "毎秒1000メッセージ処理"
+      measurement: "サーバー側メッセージ処理能力"
+      threshold: "1000 msg/sec"
+
+# 監視とアラート
+monitoring:
+  metrics_collection:
+    interval: "30秒"
+    retention: "30日間"
+    
+  alerting:
+    performance_degradation: "レスポンス時間がSLOの110%を超過"
+    availability_issue: "稼働率が99%を下回る"
+    security_incident: "異常なアクセスパターン検出"

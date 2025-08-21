@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-08-15T01:00:33.102Z",
+  "status": "error",
+  "errors": 3,
+  "warnings": 1,
+  "details": "Command failed: npm run type-check",
+  "issues": [
+    "Missing type annotation in MessageComposer.tsx:45",
+    "Unused import in ReadStatusBadge.tsx",
+    "Potential null reference in websocketService.ts"
+  ]
+}

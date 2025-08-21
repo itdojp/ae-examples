@@ -1,0 +1,436 @@
+# E2E暗号化チャットアプリケーション - GitHub Actions CI/CD
+name: E2E Chat CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'implementations/20250814-EncryptedChatApp/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'implementations/20250814-EncryptedChatApp/**'
+  release:
+    types: [ published ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/e2echat
+  NODE_VERSION: '18'
+  WORKING_DIRECTORY: implementations/20250814-EncryptedChatApp
+
+defaults:
+  run:
+    working-directory: ${{ env.WORKING_DIRECTORY }}
+
+jobs:
+  # コード品質・テスト
+  quality-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: [backend, webui]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.WORKING_DIRECTORY }}/${{ matrix.component }}/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+      working-directory: ${{ env.WORKING_DIRECTORY }}/${{ matrix.component }}
+
+    - name: Run ESLint
+      run: npm run lint
+      working-directory: ${{ env.WORKING_DIRECTORY }}/${{ matrix.component }}
+
+    - name: Run TypeScript check
+      run: npm run typecheck
+      working-directory: ${{ env.WORKING_DIRECTORY }}/${{ matrix.component }}
+      if: matrix.component == 'webui'
+
+    - name: Run unit tests
+      run: npm test -- --coverage
+      working-directory: ${{ env.WORKING_DIRECTORY }}/${{ matrix.component }}
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ${{ env.WORKING_DIRECTORY }}/${{ matrix.component }}/coverage/lcov.info
+        flags: ${{ matrix.component }}
+        name: ${{ matrix.component }}-coverage
+
+  # セキュリティスキャン
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: ${{ env.WORKING_DIRECTORY }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run CodeQL analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        languages: javascript
+
+    - name: Run npm audit
+      run: |
+        cd backend && npm audit --audit-level=moderate
+        cd ../webui && npm audit --audit-level=moderate
+
+  # WebUIビルドテスト
+  webui-build:
+    runs-on: ubuntu-latest
+    needs: [quality-check]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.WORKING_DIRECTORY }}/webui/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+      working-directory: ${{ env.WORKING_DIRECTORY }}/webui
+
+    - name: Build WebUI
+      run: npm run build
+      working-directory: ${{ env.WORKING_DIRECTORY }}/webui
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: webui-dist
+        path: ${{ env.WORKING_DIRECTORY }}/webui/dist/
+        retention-days: 7
+
+  # E2Eテスト
+  e2e-test:
+    runs-on: ubuntu-latest
+    needs: [webui-build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: e2echat_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install backend dependencies
+      run: npm ci
+      working-directory: ${{ env.WORKING_DIRECTORY }}/backend
+
+    - name: Install webui dependencies
+      run: npm ci
+      working-directory: ${{ env.WORKING_DIRECTORY }}/webui
+
+    - name: Download WebUI artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: webui-dist
+        path: ${{ env.WORKING_DIRECTORY }}/webui/dist/
+
+    - name: Start backend server
+      run: |
+        export NODE_ENV=test
+        export DB_HOST=localhost
+        export DB_PORT=5432
+        export DB_NAME=e2echat_test
+        export DB_USER=postgres
+        export DB_PASSWORD=test_password
+        export REDIS_HOST=localhost
+        export REDIS_PORT=6379
+        export JWT_SECRET=test_secret
+        npm start &
+        sleep 10
+      working-directory: ${{ env.WORKING_DIRECTORY }}/backend
+
+    - name: Run API integration tests
+      run: npm run test:integration
+      working-directory: ${{ env.WORKING_DIRECTORY }}/backend
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_NAME: e2echat_test
+        DB_USER: postgres
+        DB_PASSWORD: test_password
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+
+    - name: Install Playwright
+      run: npx playwright install --with-deps
+      working-directory: ${{ env.WORKING_DIRECTORY }}/webui
+
+    - name: Run E2E tests
+      run: npm run test:e2e
+      working-directory: ${{ env.WORKING_DIRECTORY }}/webui
+      env:
+        BASE_URL: http://localhost:4173
+
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: |
+          ${{ env.WORKING_DIRECTORY }}/webui/test-results/
+          ${{ env.WORKING_DIRECTORY }}/webui/playwright-report/
+        retention-days: 7
+
+  # Dockerイメージビルド
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [quality-check, security-scan]
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,prefix={{branch}}-
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ env.WORKING_DIRECTORY }}
+        file: ${{ env.WORKING_DIRECTORY }}/phases/6-operate/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+
+    - name: Output image
+      id: image
+      run: |
+        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}" >> $GITHUB_OUTPUT
+
+  # セキュリティスキャン（Dockerイメージ）
+  image-security-scan:
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.event_name != 'pull_request'
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ needs.docker-build.outputs.image }}
+        format: 'sarif'
+        output: 'trivy-image-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-image-results.sarif'
+
+  # パフォーマンステスト
+  performance-test:
+    runs-on: ubuntu-latest
+    needs: [e2e-test]
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install k6
+      run: |
+        sudo gpg -k
+        sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+        echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+        sudo apt-get update
+        sudo apt-get install k6
+
+    - name: Run performance tests
+      run: k6 run --out json=performance-results.json scripts/performance-test.js
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      env:
+        API_BASE_URL: http://localhost:3000
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: ${{ env.WORKING_DIRECTORY }}/performance-results.json
+
+  # ステージング環境デプロイ
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [docker-build, e2e-test]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://chat-staging.example.com
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+
+    - name: Deploy to ECS
+      run: |
+        aws ecs update-service \
+          --cluster e2echat-staging \
+          --service e2echat-app \
+          --force-new-deployment \
+          --task-definition e2echat-staging:${{ github.run_number }}
+
+    - name: Wait for deployment
+      run: |
+        aws ecs wait services-stable \
+          --cluster e2echat-staging \
+          --services e2echat-app
+
+    - name: Run smoke tests
+      run: |
+        curl -f https://chat-staging.example.com/health
+        curl -f https://chat-staging.example.com/api/health
+
+  # 本番環境デプロイ
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [docker-build, e2e-test, performance-test]
+    if: github.event_name == 'release'
+    environment:
+      name: production
+      url: https://chat.example.com
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-west-2
+
+    - name: Deploy to production ECS
+      run: |
+        aws ecs update-service \
+          --cluster e2echat-production \
+          --service e2echat-app \
+          --force-new-deployment \
+          --task-definition e2echat-production:${{ github.run_number }}
+
+    - name: Wait for deployment
+      run: |
+        aws ecs wait services-stable \
+          --cluster e2echat-production \
+          --services e2echat-app
+
+    - name: Run production smoke tests
+      run: |
+        curl -f https://chat.example.com/health
+        curl -f https://chat.example.com/api/health
+
+    - name: Notify deployment success
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: 'E2E Chat production deployment successful! 🚀'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # 通知
+  notify:
+    runs-on: ubuntu-latest
+    needs: [quality-check, security-scan, e2e-test, docker-build]
+    if: always()
+    steps:
+    - name: Notify on failure
+      if: contains(needs.*.result, 'failure')
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: 'E2E Chat CI/CD pipeline failed! ❌'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Notify on success
+      if: contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure')
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: 'E2E Chat CI/CD pipeline completed successfully! ✅'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

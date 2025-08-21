@@ -1,0 +1,6 @@
+{
+  "timestamp": "2025-08-15T01:00:34.307Z",
+  "status": "error",
+  "message": "Failed to run npm audit",
+  "details": "Command failed: npm audit --json"
+}

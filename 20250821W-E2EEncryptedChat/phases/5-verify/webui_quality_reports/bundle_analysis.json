@@ -1,0 +1,6 @@
+{
+  "timestamp": "2025-08-15T01:00:35.744Z",
+  "status": "error",
+  "message": "Build failed during bundle analysis",
+  "details": "Command failed: npm run build"
+}

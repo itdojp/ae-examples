@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-08-15T01:00:35.746Z",
+  "overallScore": 77,
+  "qualityLevel": "Fair",
+  "categoryScores": {
+    "codeQuality": 85,
+    "typeCheck": 60,
+    "linting": 70,
+    "testing": 61.95,
+    "security": 90,
+    "performance": 90,
+    "accessibility": 87
+  },
+  "recommendations": [
+    "Focus on improving test coverage"
+  ]
+}
